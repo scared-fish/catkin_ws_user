@@ -26,18 +26,18 @@ def callbackBackwardLongitudinal(request):
         return ParkingManeuverResponse(
             "ERROR: Request can only be 'left' or 'right'")
 
-    driving_direction_pub1.publish(0.30)
+    driving_direction_pub1.publish(0.06)
 
 #     rospy.sleep(10)
 #     pub_back.publish(0.10)
 
-    rospy.sleep(10)
-    driving_direction_pub2.publish(0.30)
+    rospy.sleep(7)
+    driving_direction_pub2.publish(0.09)
 
-    rospy.sleep(10)
-    pub_forward.publish(0.1)
+    rospy.sleep(7)
+    pub_forward.publish(0.2)
 
-    rospy.sleep(10)
+    rospy.sleep(6)
     return ParkingManeuverResponse("FINISHED")
 
 
@@ -80,4 +80,3 @@ rospy.loginfo(rospy.get_caller_id() + ": started!")
 
 # spin() simply keeps python from exiting until this node is stopped
 rospy.spin()
-
