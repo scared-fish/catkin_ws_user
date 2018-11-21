@@ -37,9 +37,25 @@ class image_converter:
 
     #bi_gray
     bi_gray_max = 255
-    bi_gray_min = 245
-    ret,thresh1=cv2.threshold(gray, bi_gray_min, bi_gray_max, cv2.THRESH_BINARY);
+    bi_gray_min = 230
+    ret,bnw,thresh1=cv2.threshold(gray, bi_gray_min, bi_gray_max, cv2.THRESH_BINARY);
 
+
+	# create (y,x) array of all white pixels
+	# we use grayscaled image -> shape is (height, widht, 1)
+	# the one stands for gray scale 0=black to 255=white
+	# since the max grayscale threshold is set to 255 we only have
+	# black or white pixels
+	A= []
+	
+	for y in range(0, bnw.shape[0]):
+		for x in range(0, bnw.shape[1]):
+			if bnw[y,x] == 255:
+				A.append([y,x])
+	print A
+	
+
+"""
     #gauss
     MAX_KERNEL_LENGTH = 2;
     i= 5
@@ -75,6 +91,7 @@ class image_converter:
               b[j,i]=255
     bi_rgb = cv2.merge((b,g,r))
 
+"""
     #bi_hsv
     h_max = 255;
     h_min = 0;
