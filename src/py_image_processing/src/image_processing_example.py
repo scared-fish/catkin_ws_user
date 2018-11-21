@@ -22,7 +22,7 @@ class image_converter:
     self.image_pub = rospy.Publisher("/image_processing/bin_img",Image, queue_size=1)
 
     self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/camera/rgb/image_raw",Image,self.callback, queue_size=1)
+    self.image_sub = rospy.Subscriber("/camera/color/image_raw",Image,self.callback, queue_size=1)
 
 
   def callback(self,data):
