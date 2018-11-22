@@ -40,97 +40,66 @@ class image_converter:
     bi_gray_min = 230
     ret,bnw,thresh1=cv2.threshold(gray, bi_gray_min, bi_gray_max, cv2.THRESH_BINARY);
 
-
+	# A4
 	# create (y,x) array of all white pixels
 	# we use grayscaled image -> shape is (height, widht, 1)
 	# the one stands for gray scale 0=black to 255=white
 	# since the max grayscale threshold is set to 255 we only have
 	# black or white pixels
 	A= []
-	
+	 
 	for y in range(0, bnw.shape[0]):
 		for x in range(0, bnw.shape[1]):
 			if bnw[y,x] == 255:
 				A.append([y,x])
 	print A
-	
+	# it makes sense to have a cut off at the horizont line.
+	# in our test we started from y=240
+	# there were spots on the white wall that where brighter than the floor marks
 
-"""
-    #gauss
-    MAX_KERNEL_LENGTH = 2;
-    i= 5
-    dst=cv2.GaussianBlur(cv_image,(5,5),0,0)
 
-    #edge
-    dx = 1;
-    dy = 1;
-    ksize = 3; #1,3,5,7
-    scale = 1
-    delta = 0
-    edge_img=cv2.Sobel(thresh1, cv2.CV_8UC1, dx, dy, ksize, scale, delta, cv2.BORDER_DEFAULT)
-
-    #bi_rgb
-    r_max = 244;
-    r_min = 0;
-    g_max = 255;
-    g_min = 0;
-    b_max = 255;
-    b_min = 0;
-    b,g,r = cv2.split(cv_image)
-    for j in range(cv_image.shape[0]):
-      for i in range(cv_image.shape[1]):
-        if (r[j,i] >= r_min and r[j,i] <= r_max):
-          if (g[j,i] >= g_min and g[j,i] <= g_max):
-            if (b[j,i] >= b_min and b[j,i] <= b_max):
-              r[j,i]=0
-              g[j,i]=0
-              b[j,i]=0
-            else:
-              r[j,i]=255
-              g[j,i]=255
-              b[j,i]=255
-    bi_rgb = cv2.merge((b,g,r))
-
-"""
-    #bi_hsv
-    h_max = 255;
-    h_min = 0;
-    s_max = 255;
-    s_min= 0;
-    v_max = 252;
-    v_min = 0;
-    hsv=cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV);
-    h,s,v = cv2.split(hsv)
-
-    for j in xrange(hsv.shape[0]):
-      for i in xrange(hsv.shape[1]):
-        if  (v[j,i]>= v_min and v[j,i]<= v_max and s[j,i]>= s_min and s[j,i]<= s_max and h[j,i]>= h_min and h[j,i]<= h_max):
-          h[j,i]=0
-          s[j,i]=0
-          v[j,i]=0
-        else:
-          h[j,i]=255
-          s[j,i]=255
-          v[j,i]=255
-
-    bi_hsv = cv2.merge((h,s,v))
-
-    # titles = ['Original Image', 'GRAY','BINARY','GAUSS','EDGE','BI_RGB','BI_HSV']
-    # images = [cv_image, gray, thresh1,dst,edge_img,bi_rgb,bi_hsv]
-    #
-    # for i in xrange(7):
-    #   plt.subplot(2,4,i+1),plt.imshow(images[i],'gray')
-    #   plt.title(titles[i])
-    #   plt.xticks([]),plt.yticks([])
-    #
-    # plt.show()
-    # print("Done")
 
     try:
       self.image_pub.publish(self.bridge.cv2_to_imgmsg(thresh1, "mono8"))
     except CvBridgeError as e:
       print(e)
-      
+
+	# A5
+    fx = 614.1699
+    fy = 614.9002
+    cx = 329.9491
+    cy = 237.2788
+    camera_mat = np.zeros((3,3,1))
+    camera_mat[:,:,0] = np.array([[fx, 0, cx],[0, fy, cy],[0,  0,  1]])
+    print camera_mat
+    k1 =  0.1115
+    k2 = -0.1089
+    p1 =  0
+    p2 =  0
+    dist_coeffs = np.zeros((4,1))
+    dist_coeffs[:,0] = np.array([[k1, k2, p1, p2]])
+    print dist_coeffs
+
+    # far to close, left to right (order of discovery) in cm
+    obj_points = np.zeros((6,3,1))
+    obj_points[:,:,0] = np.array([[00.0, 00.0, 0],[40.0, 00.0, 0],[00.0, 38.6, 0],[40.0, 38.6, 0],[00.0, 58, 0],[40.0, 58, 0]])
+    image_points = np.zeros((6,3,1))
+	# take pixels of left upper corner
+    image_points = np.array([[281,239],[281,465],[338,204],[338,505],[456,104],[456,583]], dtype = np.float32)
+    print obj_points
+    retval, rvec, tvec = cv2.solvePnP(obj_points, image_points, camera_mat, dist_coeffs)
+ 
+    print retval
+    print rvec
+    print tvec
+    rmat = np.zeros((3,3))
+    pp = cv2.Rodrigues(rvec, rmat, jacobian=0)
+    print pp
+
+
+
+
+
 
 def main(args):
   rospy.init_node('image_converter', anonymous=True)
