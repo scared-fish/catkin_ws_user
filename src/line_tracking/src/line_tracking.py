@@ -47,8 +47,46 @@ class line_tracker:
 
     img = cv2.cvtColor(res, cv2.COLOR_HSV2BGR)
 
+    b,g,r = cv2.split(img)
+
+    max1 = (0,0)
+    max2 = (img.shape[1],0)
+    min1 = (img.shape[1],0)
+    min2 = (0,0)
+
+    for y in range(0, img.shape[0]):
+     for x in range(0, img.shape[1]):
+      if y > img.shape[0]/2:
+       if not(r[y,x] == 0 and b[y,x] == 0 and g[y,x] == 0):
+        r[y,x] = 255
+        g[y,x] = 255
+        b[y,x] = 255
+        if x < min1[0] and y > img.shape[0]-10:
+         min1 = (x,y)
+        if x > min2[0] and y > img.shape[0]-10:
+         min2 = (x,y)
+        if x > max1[0] and x<img.shape[1]/2:
+         max1 = (x,y)
+        if x < max2[0] and x>img.shape[1]/2:
+         max2 = (x,y)
+      else:
+       r[y,x] = 0
+       g[y,x] = 0
+       b[y,x] = 0
+    img = cv2.merge((b,g,r))
+
+    min1 = (min1[0]+6,min1[1])
+    max1 = (max1[0]+1,max1[1])
+
+    line = cv2.line(img, min1, max1, (0,0,255),5);
+
+    min2 = (min2[0]-8,min2[1])
+    max2 = (max2[0]+1,max2[1])
+
+    line = cv2.line(img, min2, max2, (0,255,0),5);
+
     try:
-     self.image_pub.publish(self.bridge.cv2_to_imgmsg(img, "bgr8"))
+     self.image_pub.publish(self.bridge.cv2_to_imgmsg(line, "bgr8"))
     except CvBridgeError as e:
      print(e)
 
