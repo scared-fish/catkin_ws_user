@@ -13,13 +13,14 @@ from cv_bridge import CvBridge, CvBridgeError
 #import matplotlib
 #matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+import numpy as np
 
 # from __future__ import print_function
 
-class image_converter:
+class line_tracker:
 
   def __init__(self):
-    self.image_pub = rospy.Publisher("/image_processing/bin_img",Image, queue_size=1)
+    self.image_pub = rospy.Publisher("/line_tracker/bin_img",Image, queue_size=1)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/color/image_raw",Image,self.callback, queue_size=1)
@@ -31,77 +32,29 @@ class image_converter:
       print(e)
 
 
-    #make it gray
-    gray=cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+    # Convert BGR to HSV
+    hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
 
-    #bi_gray
-    bi_gray_max = 255
-    bi_gray_min = 230
-    ret,bnw,thresh1=cv2.threshold(gray, bi_gray_min, bi_gray_max, cv2.THRESH_BINARY);
+    # define range of white color in HSV
+    lower_white = np.array([0,0,250])
+    upper_white = np.array([50,200,255])
 
-	# save image to somewhere
-	# imwrite( "../../images/Gray_Image.jpg", bnw);
+    # Threshold the HSV image to get only white colors
+    mask = cv2.inRange(hsv, lower_white, upper_white)
 
-	# A4
-	# create (y,x) array of all white pixels
-	# we use grayscaled image -> shape is (height, widht, 1)
-	# the one stands for gray scale 0=black to 255=white
-	# since the max grayscale threshold is set to 255 we only have
-	# black or white pixels
-	A= []
-	 
-	for y in range(0, bnw.shape[0]):
-		for x in range(0, bnw.shape[1]):
-			if bnw[y,x] == 255:
-				A.append([y,x])
-	print A
-	# it makes sense to have a cut off at the horizont line.
-	# in our test we started from y=240
-	# there were spots on the white wall that where brighter than the floor marks
+    # Bitwise-AND mask and original image
+    res = cv2.bitwise_and(cv_image,cv_image, mask= mask)
 
-
+    img = cv2.cvtColor(res, cv2.COLOR_HSV2BGR)
 
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(thresh1, "mono8"))
+     self.image_pub.publish(self.bridge.cv2_to_imgmsg(img, "bgr8"))
     except CvBridgeError as e:
-      print(e)
-
-	# A5
-    fx = 614.1699
-    fy = 614.9002
-    cx = 329.9491
-    cy = 237.2788
-    camera_mat = np.zeros((3,3,1))
-    camera_mat[:,:,0] = np.array([[fx, 0, cx],[0, fy, cy],[0,  0,  1]])
-    print camera_mat
-    k1 =  0.1115
-    k2 = -0.1089
-    p1 =  0
-    p2 =  0
-    dist_coeffs = np.zeros((4,1))
-    dist_coeffs[:,0] = np.array([[k1, k2, p1, p2]])
-    print dist_coeffs
-
-    # far to close, left to right (order of discovery) in cm
-    obj_points = np.zeros((6,3,1))
-    obj_points[:,:,0] = np.array([[00.0, 00.0, 0],[40.0, 00.0, 0],[00.0, 38.6, 0],[40.0, 38.6, 0],[00.0, 58, 0],[40.0, 58, 0]])
-    image_points = np.zeros((6,3,1))
-	# take pixels of left upper corner
-    image_points = np.array([[281,239],[281,465],[338,204],[338,505],[456,104],[456,583]], dtype = np.float32)
-    print obj_points
-    retval, rvec, tvec = cv2.solvePnP(obj_points, image_points, camera_mat, dist_coeffs)
-
-    print retval
-    print rvec
-    print tvec
-    rmat = np.zeros((3,3))
-    pp = cv2.Rodrigues(rvec, rmat, jacobian=0)
-    print pp
-
+     print(e)
 
 def main(args):
-  rospy.init_node('image_converter', anonymous=True)
-  ic = image_converter()
+  rospy.init_node('line_tracker', anonymous=True)
+  lc = line_tracker()
   try:
     rospy.spin()
   except KeyboardInterrupt:
