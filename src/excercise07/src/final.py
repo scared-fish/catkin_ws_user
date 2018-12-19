@@ -20,15 +20,14 @@ inlier_dist = 0.05  # max distance for inliers (in meters)
 
 sample_count = 50  # number RANSAC samples to take
 
+# all the used publishers and subscribers
 pub_stop_start = rospy.Publisher("/manual_control/stop_start", Int16, queue_size=100, latch=True)
 pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=100, latch=True)
 pub_steering = rospy.Publisher("/steering", UInt8, queue_size=100, latch=True)
-
 pub_image = rospy.Publisher("/image_processing/bin_img",Image, queue_size=1)
+sub_image = rospy.Subscriber("/camera/color/image_raw",Image,callback, queue_size=1)
 bridge = CvBridge()
-def steering_feedback_callback(steering_angle):
-	global steering_angle_feedback
-	steering_angle_feedback=int(steering_angle.data)
+
 
 def get_distance(points, slope, intercept):
 	""" return the distance for each point to the parametrised line """
@@ -43,6 +42,7 @@ def get_inliers(points, slope, intercept):
 	""" return a numpy boolean array for each point (True if within 'inlier_dist' of the line, else False). """
 	return get_distance(points, slope, intercept) <= inlier_dist
 
+# modifiyed to read in the pixels of the picture and not of the lidar
 def find_best_params(points):
 	""" find the best params to describe a detected line using the RANSAC algorithm """
 	best_count = 0
@@ -82,7 +82,8 @@ def find_best_params(points):
 
 	return x_a, y_a, x_b, y_b
 
-def	savesteering(steering_angle):
+# dump steering angle and time into a file
+def savesteering(steering_angle):
 	cur_time = str(datetime.datetime.now().timetuple()[4]) + ":" + str(datetime.datetime.now().timetuple()[5])
 	text_file = open("steering_dump.txt","a")
 	text_file.write("steering angle: %d - %s [mm:ss] \n" % (steering_angle, cur_time))
@@ -121,7 +122,7 @@ def callback(data):
 	x_a, y_a, x_b, y_b = find_best_params(points)
 
 
-
+	# check for steering
 	if abs(x_a-x_b) > 25 or abs(320-x_a) > 40 or abs(320-x_b) > 40:
 		if y_a<y_b: #ensure that y1<y2
 			y1= y_a
@@ -160,14 +161,14 @@ def callback(data):
 	except CvBridgeError as e:
 		print(e)
 
-sub_image = rospy.Subscriber("/camera/color/image_raw",Image,callback, queue_size=1)
 
 def main(args):
-	#make sure file where we dump steeringanlge + time is empy
+	#make sure file where we dump steeringanlge + time is empty
 	my_file= "/home/mi/lspitzlay/catkin_ws_user/steering_dump.txt"
 	if os.path.isfile(my_file):
 		os.remove("steering_dump.txt")
 	rospy.init_node('simple_line_drive', anonymous=True)
+
 	try:
 		rospy.spin()
 	except KeyboardInterrupt:
