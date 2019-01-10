@@ -25,7 +25,7 @@ pub_stop_start = rospy.Publisher("/manual_control/stop_start", Int16, queue_size
 pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=100, latch=True)
 pub_steering = rospy.Publisher("/steering", UInt8, queue_size=100, latch=True)
 pub_image = rospy.Publisher("/image_processing/bin_img",Image, queue_size=1)
-sub_image = rospy.Subscriber("/camera/color/image_raw",Image,callback, queue_size=1)
+
 bridge = CvBridge()
 
 
@@ -98,7 +98,7 @@ def stop_driving():
 
 def callback(data):
 	pub_speed.publish(150)
-	pub_speed.publish(0)
+	#pub_speed.publish(0)
 	try:
 		cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
 	except CvBridgeError as e:
@@ -161,6 +161,7 @@ def callback(data):
 	except CvBridgeError as e:
 		print(e)
 
+sub_image = rospy.Subscriber("/camera/color/image_raw",Image,callback, queue_size=1)
 
 def main(args):
 	#make sure file where we dump steeringanlge + time is empty
