@@ -3,6 +3,7 @@ import roslib
 import sys
 import rospy
 import cv2
+import time
 import datetime
 import os
 import os.path
@@ -25,6 +26,7 @@ pub_stop_start = rospy.Publisher("/manual_control/stop_start", Int16, queue_size
 pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=100, latch=True)
 pub_steering = rospy.Publisher("/steering", UInt8, queue_size=100, latch=True)
 pub_image = rospy.Publisher("/image_processing/bin_img",Image, queue_size=1)
+
 
 bridge = CvBridge()
 
@@ -89,18 +91,99 @@ def stop_driving():
 	print ('stop driving')
 	print ('close the plot to stop the program!')
 
+
+
+"""
+The PID-controller
+
+We get the wheel turn rate from the tick publisher.
+We masured that 180 ticks are equal to 1 meter.
+
+
+call_pid_controller returns the current actual speed of the car.
+This is achived by accumulating the ticks count over one second.
+The function recives 'ticks' from the pulse senso. One tick is
+emitted when the wheel turns a full round.
+
+
+pid_velo_controller gets meters per seconds(mps) as input and sets
+the speed of the car by publishing the speed as rpm.
+At the same time it adjusts the speed so that the actual
+mps are equal to the desired mps.
+"""
+
+
+#global ticks so that we can accumulate them over one second
+ticks = 0
+#global acutal speed of the carr
+global_mps = 0
+
+#timestamp renewed each second by call_pid_controller
+timestamp_ticks = time.time()
+
+
+
+def call_actual_mps(data):
+
+	# collect ticks over one second	
+	global timestamp_ticks
+	global ticks
+	global global_mps
+
+	ticks += data.data
+
+	#each second we update meters per second
+	if time.time() - timestamp_ticks >= 1:
+		#reset timestamp
+		timestamp_ticks = time.time()
+		global_mps = ticks
+
+#set desired speed
+def pid_velo_controller(mps):
+
+	#global timestamp_velo_cont
+	timestamp_velo_cont = time.time()
+	delta_time = 1e-15	
+
+	global global_mps
+	actual_mps = global_mps
+
+	# K_P, K_I, K_D have to be specified by trail and error
+	K_P = 0.12
+	K_I = 0.0001
+	K_D = 2.5
+	
+	error_prev = mps - actual_mps
+	error_sum = 0	
+	while True:
+		delta_time = time.time() - timestamp_velo_cont
+		#proportional part
+		error = mps - actual_mps
+		#integral part
+		error_sum = error_sum + error * delta_time
+		#derivative part
+		dedt = (error - error_prev) / delta_time
+		# pid sum
+		rpm = K_P * error + K_I * error_sum + K_D * dedt
+		pub_speed.publish(rpm)
+		error_prev = error
+		print(rpm)
+		print(delta_time)
+		time.sleep(1)
+
+
 def callback(data):
-	#pub_speed.publish(150)
-	pub_speed.publish(0)
+	pub_speed.publish(150)
+	#pub_speed.publish(0)
 	try:
 		cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
 	except CvBridgeError as e:
 		print(e)
 
-	#make it gray
+	# make it gray
 	gray=cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-	#bi_gray
+	# bi_gray
 	bi_gray_max = 255
 	bi_gray_min = 200
 	ret,thresh1=cv2.threshold(gray, bi_gray_min, bi_gray_max, cv2.THRESH_BINARY);
@@ -111,11 +194,14 @@ def callback(data):
 			if thresh1[y,x] > 230:
 				A.append([x,y])
 	points = np.array(A)
-	print(points)
+
 	x_a, y_a, x_b, y_b = find_best_params(points)
 
+#Still the Controller from last exercise.
+#It works perfect and we just needed to add the acceleration
+#when there is no steering happening
 
-	# check for steering
+	#check for steering
 	if abs(x_a-x_b) > 25 or abs(320-x_a) > 40 or abs(320-x_b) > 40:
 		if y_a<y_b: #ensure that y1<y2
 			y1= y_a
@@ -130,29 +216,25 @@ def callback(data):
 		if x1-x2 > 20:
 			#steer right a bit
 			pub_steering.publish(150)
-			savesteering(150)
 		elif x2-x1 > 20:
 			#steer left a bit
 			pub_steering.publish(30)
-			savesteering(30)
 		elif 320-x1 > 20 and 320-x2 > 20:
 			#steer left a bit
 			pub_steering.publish(30)
-			savesteering(30)
 		elif 320-x1 < -20 and 320-x2 < -20:
 			#steer right a bit
 			pub_steering.publish(150)
-			savesteering(150)
 		rospy.sleep(0.5)
 		pub_steering.publish(90)
-		savesteering(90)
-		rospy.sleep(0.2)
-		print(x1,y1,x2,y2)
+		rospy.sleep(0.4)
 
 	try:
 		pub_image.publish(bridge.cv2_to_imgmsg(thresh1, "mono8"))
 	except CvBridgeError as e:
 		print(e)
+
+sub_ticks = rospy.Subscriber("/ticks", UInt8, call_actual_mps, queue_size=20)
 
 sub_image = rospy.Subscriber("/camera/color/image_raw",Image, callback, queue_size=1)
 
@@ -160,9 +242,10 @@ def main(args):
 	rospy.init_node('advanced_line_drive', anonymous=True)
 	try:
 		rospy.spin()
-		callback()
 	except KeyboardInterrupt:
 		print("Shutting down")
 
 if __name__ == '__main__':
 	main(sys.argv)
+
+
