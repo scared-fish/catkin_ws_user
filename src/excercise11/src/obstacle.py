@@ -6,6 +6,7 @@ import time
 import datetime
 import math
 import numpy as np
+from std_msgs.msg import Int16
 from PIL import Image
 from PIL import ImageDraw
 from sensor_msgs.msg import LaserScan
@@ -20,8 +21,8 @@ laneID = setup.laneID  # 0
 model = Track(laneID, logging)
 
 # fuer 'realtime' data
-global_curPos
-global_orientation
+global_curPos = (0,0)
+global_orientation = 0.0
 scanner_list = []
 
 # fuer den plotter
@@ -63,6 +64,7 @@ def scan_callback(data):
 	# fuer den plotter
 	global global_curPos
 	global global_orientation
+	plotter_list = []
 
 	distances = data.ranges
 	global scanner_list
@@ -83,6 +85,7 @@ def scan_callback(data):
 	transLidarInf(plotter_list, global_curPos, global_orientation)
 
 def plotter():
+	print("PLOTTER PLOTTET")
 	global position_list
 	global obstacle_list
 	time.sleep(70)
@@ -138,7 +141,6 @@ def findpoint(point,laneID):
 def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten uebersetzen
 
 # In Abhaengigkeit von getLidarInf
-
 	incr = math.pi * 2 / 360
 	x = currPos[0]
 	y = currPos[1]
@@ -151,7 +153,6 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 		if C[i] > math.pi:
 			C[i] = -2 * math.pi + C[i]
 	D = []
-	print (C)
 	for i in range(0, len(C)):
 		xadd = round(A[i] * 100 * math.cos(C[i]), 2)
 		if abs(C[i]) >= math.pi / 2:
@@ -170,7 +171,7 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 	return (D)
 
 
-def findRelevantObstacles(A,laneID): #Prüfen, ob es auf einer Bahn Hindernisse gibt
+def findRelevantObstacles(A,laneID): #Pruefen, ob es auf einer Bahn Hindernisse gibt
 	ret = []
 	for i in A:
 		ref = findpoint(i,laneID)
@@ -222,7 +223,7 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 			newPoint1=point2
 
 	elif 195 <= x1 <= 405 and y1 <= 215: #linke Gerade
-    	if 195 > x2 or x2 > 405 or y2 > 215:#Falls sich der 2.Punkt nich im gleichen Bereich befindet
+	    	if 195 > x2 or x2 > 405 or y2 > 215: #Falls sich der 2.Punkt nich im gleichen Bereich befindet
 			newPoint1 = (406,215-rad)
 			distance += 406-x1
 		else:
@@ -230,7 +231,7 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 			distance += x2-x1
 
 	elif 195 <= x1 <= 405 and 216 <= y1: #rechte Gerade
-		if 105 > x2 or x2 > 405 or y2 < 216:#Falls sich der 2.Punkt nich im gleichen Bereich befindet
+		if 105 > x2 or x2 > 405 or y2 < 216: #Falls sich der 2.Punkt nich im gleichen Bereich befindet
 			newPoint1 = (194,215+rad)
 			distance += x1-194
 		else:
@@ -238,8 +239,8 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 			distance += x1-x2
 
 	elif 406 <= x1: #unterer Halbkreis
-			umf = totUmf-(beta/180)*totUmf
-		if x2 < 406:#Falls sich der 2.Punkt nich im gleichen Bereich befindet
+		umf = totUmf-(beta/180)*totUmf
+		if x2 < 406: #Falls sich der 2.Punkt nich im gleichen Bereich befindet
 			distance += umf
 			newPoint1 = (405,215+rad)
 		else:
@@ -252,30 +253,28 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 	else:
 		return (int(distance))
 
-
 def obstacle_based_lane_switch():
 	global scanner_list
 	global global_curPos
 	global global_orientation
-	global setup.laneID
+	setup.laneID
 	A=transLidarInf(scanner_list, global_curPos, global_orientation)
 
 	obstacles1 = closestObstacle(findPoint(global_curPos,1),1,findRelevantObstacles(A,1))
 	obstacles2 = closestObstacle(findPoint(global_curPos,2),2,findRelevantObstacles(A,2))
-	if (setup.laneID = 1 and obstacles1 < 50) or (setup.laneID = 2 and obstacles2 < 50):
+	if (setup.laneID == 0 and obstacles1 < 50) or (setup.laneID == 1 and obstacles2 < 50):
 		rospy.on_shutdown(when_shutdown)
 		#pub_speed.publish(0) #Wenn das Hinderniss zu nah ist, halte an.
 	elif (setup.laneID == 0 and obstacles1 < 500) and not (obstacles2 < 500):
 		setup.laneID = 1 #Wenn auf Bahn 1 gefahren wird, und sich ein dort ein Hinderniss befindet, weiche auf Bahn 2 aus.
 	elif (setup.laneID == 1 and obstacles2 < 500) and not (obstacles1 < 500):
-		setup.laneID = 0 #s.o.; Bahn 2 -> Bahn 1    
+		setup.laneID = 0 #s.o.; Bahn 2 -> Bahn 1
 
+rospy.init_node('obstacle', anonymous=True)
 
 sub_scan = rospy.Subscriber("/scan", LaserScan, scan_callback)
 sub_odom = rospy.Subscriber("/localization/odom/5",Odometry, odom_callback)
 
-rospy.init_node('get_scan', anonymous=True)
-rospy.init_node('get_orientation', anonymous=True)
 try:
 	rospy.spin()
 	plotter()

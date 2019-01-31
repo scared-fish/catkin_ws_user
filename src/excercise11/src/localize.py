@@ -50,6 +50,14 @@ def callback_lane_switch(data):
 	model.switch_lane()
 
 
+# location = np.append(location, ([x, y]))
+# location_corr = np.append(location_corr, (look_ahead((x, y),laneID)))
+# rospy.loginfo("x,y:",data)
+# print(location)
+# np.save("location.npy", location)
+# np.save("nearest_point.npy", location_corr)
+# rospy.sleep(1)
+
 rospy.init_node("localize", anonymous=True)
 print(" ##### localize started ######")
 # publish topic /target_point

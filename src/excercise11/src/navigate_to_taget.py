@@ -25,7 +25,7 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import Image
 from setup_values import Setup
-from collections import deque
+from model_track import Track
 
 setup = Setup()
 carID = setup.carID  # 5
@@ -130,7 +130,7 @@ def callback_update_destiny(data):
 	desired_position = np.array([data.x, data.y])
 
 
-rospy.init_node("desired_steering", anonymous=True)
+rospy.init_node("navigate_to_target", anonymous=True)
 
 # create subscribers and publishers
 sub_pos = rospy.Subscriber("/localization/odom/" + str(carID), Odometry, callback_position, queue_size=1)
