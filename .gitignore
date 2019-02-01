@@ -7,3 +7,4 @@ devel/
 logs/
 .metadata/
 .catkin_workspace
+.pyc

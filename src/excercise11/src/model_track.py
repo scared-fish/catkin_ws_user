@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 
-import numpy as np
+# Musterloesung von
+# Group: ROSINCHEN
+# Authors:
+#       Felix
+#       Adrian
+#       Sebastian
 
+import numpy as np
 
 class Track:
 
