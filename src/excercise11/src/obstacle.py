@@ -5,6 +5,7 @@ import rospy
 import time
 import datetime
 import math
+import subprocess
 import numpy as np
 from std_msgs.msg import Int16
 from PIL import Image
@@ -14,6 +15,7 @@ from nav_msgs.msg import Odometry
 from setup_values import Setup
 from model_track import Track
 
+# Referaenz zu rosinchen_10
 setup = Setup()
 logging = setup.logging
 carID = setup.carID  # 5
@@ -24,22 +26,25 @@ model = Track(laneID, logging)
 global_curPos = (0,0)
 global_orientation = 0.0
 scanner_list = []
+odom_timestamp = time.time()
 
 # fuer den plotter
 obstacle_list = []
 position_list = []
 draw_timestamp = time.time()
 
-odom_timestamp = time.time()
 
 pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=100, latch=True)
 
+#bekomme die odometry daten
 def odom_callback(data):
 
 	global odom_timestamp
 	global position_list
 
+	# x,y
 	global global_curPos
+	# der Winkel in Rad
 	global global_orientation
 
 	cur_x = int(round(data.pose.pose.position.x * 100))
@@ -59,7 +64,7 @@ def odom_callback(data):
 		odom_timestamp= time.time()
 		#return orientation of car in rad where 0,0 of the map is the Ursprung
 
-
+# bekommt die scan daten
 def scan_callback(data):
 	# fuer den plotter
 	global global_curPos
@@ -70,7 +75,8 @@ def scan_callback(data):
 	global scanner_list
 	global obstacle_list
 	scanner_list = []
-	# soll so haesslich bleiben
+	# in relev_d ist kein fluessiger Uebergang dies wird
+	# in den weiteren Rechnungen aber berücksichtigt
 	# inf -> 0
 	# alles ueber 1,5m -> 0
 	relev_d = distances[0:45] + distances[314:359]
@@ -84,10 +90,12 @@ def scan_callback(data):
 				plotter_list.append(x)
 	transLidarInf(plotter_list, global_curPos, global_orientation)
 
+# der plotter aus aufgabe09
 def plotter():
 	print("PLOTTER PLOTTET")
 	global position_list
 	global obstacle_list
+	# soll nach 70 sekunden Fahrzeit einen Plot machen
 	time.sleep(70)
 	r=3
 	image_in = "map.bmp"
@@ -277,10 +285,11 @@ rospy.init_node('obstacle', anonymous=True)
 
 sub_scan = rospy.Subscriber("/scan", LaserScan, scan_callback)
 sub_odom = rospy.Subscriber("/localization/odom/5",Odometry, odom_callback)
+plotter()
 
 try:
 	rospy.spin()
-	plotter()
+
 except KeyboardInterrupt:
 	print("Shutting down")
 
