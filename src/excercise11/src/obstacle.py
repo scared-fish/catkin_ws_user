@@ -100,7 +100,7 @@ def plotter():
 	image_out = "/home/plot.png"
 	img.save(image_out)
 
-def findpoint(point,laneID):
+def findpoint(point,laneID): #Finde den nahsten Punkt auf einer bestimmen Spur
 
 	x= point[0]
 	y= point[1]
@@ -141,10 +141,11 @@ def findpoint(point,laneID):
 def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten uebersetzen
 
 # In Abhaengigkeit von getLidarInf
+# A enthaelt die Distanz von Objekten, vom Lidar gemessen
 	incr = math.pi * 2 / 360
 	x = currPos[0]
 	y = currPos[1]
-	C = []
+	C = [] #Enthaelt nach dem for-loop die Richtung in RAD aller Lidar-Informationen, passend zu A
 	for i in range(0, len(A)):
 		if i < len(A) / 2:
 			C.append(orient + i * incr)
@@ -154,13 +155,14 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 			C[i] = -2 * math.pi + C[i]
 	D = []
 	for i in range(0, len(C)):
+		#x/y-Offset kann durch den Winkel Beta (C[i]) und die Länge der Hypotenuse (A[i]) berechnet werden
 		xadd = round(A[i] * 100 * math.cos(C[i]), 2)
 		if abs(C[i]) >= math.pi / 2:
 			xadd = -xadd
 		yadd = round(math.sqrt((A[i] * 100) ** 2 - xadd ** 2), 2)
-		if A[i] == 0:
+		if A[i] == 0: # Nullen in A bedeuten, dass kein Objekt gefunden wurde, werden also aussortiert
 			continue
-		if 0 <= C[i] < math.pi / 2:
+		if 0 <= C[i] < math.pi / 2:#Je nachdem, in welche Richtung der Winkel zeigh, muss der Offset addiert oder subtrahiert werden
 			D.append((x + xadd, y - yadd))
 		elif 0 <= C[i]:
 			D.append((x - xadd, y - yadd))
@@ -174,19 +176,18 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 def findRelevantObstacles(A,laneID): #Pruefen, ob es auf einer Bahn Hindernisse gibt
 	ret = []
 	for i in A:
-		ref = findpoint(i,laneID)
-		dist = math.sqrt((ref[0]-i[0])**2 + (ref[1]-i[1])**2)
-		if dist <=15:
+		ref = findpoint(i,laneID)#Finde den Referenzpunkt auf der Bahn
+		dist = math.sqrt((ref[0]-i[0])**2 + (ref[1]-i[1])**2) #Berechne die Distanz zwischen dem Punkt und dem Referenz-Punkt
+		if dist <=15:#Falls der Punkt maximal 15 Zentimeter vom Zentrum der Bahn entfernt ist, ist das Obstacle relevant
 			ret.append(ref)
 	return (ret)
 
 def closestObstacle(currPos,laneID,A): #Das nahste Hinderniss auf einer Bahn finden
-	mindist = 500
+	mindist = 500 #Große Zahl, die nicht vom Lidar geliefert werden kann (wird vorher rausgefiltert)
 	for i in A:
-		dist = findDistance(currPos,i,laneID,0)
+		dist = findDistance(currPos,i,laneID,0)#Berechne die Distanz vom Auto zu den relevanten Obstacles
 		if dist < mindist:
-			mindist = dist
-			ret = i
+			mindist = dist#Speichere die minimale Distanz
 	return (mindist)
 
 def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf der
@@ -196,25 +197,26 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 	x2=point2[0]
 	y2=point2[1]
 
-	if laneID == 1:
+	if laneID == 1: #Radius der Kreise, basieren auf der Bahn festlegen
 		rad = 135
 	else:
 		rad = 165
 
-	totUmf = rad*math.pi
-	if y1 <= 215:
+	totUmf = rad*math.pi #Umfang eines Halbkreises
+	
+	if y1 <= 215: #Den Winkel von Punkt 1 auf dem Halbkreis berechnen (nutzlos, falls Punkt 1 auf keinem Halbkreis liegt.)
 		beta = 90+math.degrees(math.asin((215-y1)/rad))
 	else:
 		beta = 90-math.degrees(math.asin((y1-215)/rad))
 
-	if y2 <= 215:
+	if y2 <= 215: #Den Winkel von Punkt 2 auf dem Halbkreis berechnen (nutzlos, falls Punkt 2 auf keinem Halbkreis liegt.)
 		alpha = 90+math.degrees(math.asin((215-y2)/rad))
 	else:
 		alpha = 90-math.degrees(math.asin((y2-215)/rad))
 
 	if x1 <= 194: #oberer Halbkreis
-		umf = totUmf-(beta/180)*totUmf
-		if x2 > 195: #Falls sich der 2.Punkt nich im gleichen Bereich befindet
+		umf = totUmf-(beta/180)*totUmf #Restumfang von Punkt 1 bis zum Ende des oberen Halbkreises
+		if x2 > 195: #Falls sich der 2.Punkt nicht im gleichen Bereich befindet
 			distance += umf
 			newPoint1 = (195,215-rad)
 		else:
@@ -239,7 +241,7 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 			distance += x1-x2
 
 	elif 406 <= x1: #unterer Halbkreis
-		umf = totUmf-(beta/180)*totUmf
+		umf = totUmf-(beta/180)*totUmf #Restumfang von Punkt 1 bis zum Ende des unteren Halbkreises
 		if x2 < 406: #Falls sich der 2.Punkt nich im gleichen Bereich befindet
 			distance += umf
 			newPoint1 = (405,215+rad)
@@ -248,20 +250,21 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 			distance += umf-umf2
 			newPoint1=point2
 
-	if newPoint1 != point2:
+	if newPoint1 != point2: #Wenn der neue berechnete Punkt nicht mit Punkt 2 übereinstimmt, wird die Funktion erneut aufgerufen,
+				#mit dem neuen Punkt als Punkt 1 und der bereits "zurückgelegten" Distanz (Punkt 1 bis neuer Punkt 1)
 		return (findDistance(newPoint1,point2,laneID,distance))
 	else:
-		return (int(distance))
+		return (int(distance)) #Wenn newPoint1 == Point 2, wurde die richtige Distanz gefunden
 
 def obstacle_based_lane_switch():
 	global scanner_list
 	global global_curPos
 	global global_orientation
 	setup.laneID
-	A=transLidarInf(scanner_list, global_curPos, global_orientation)
+	A=transLidarInf(scanner_list, global_curPos, global_orientation) #Fetched die Lidar-Informationen
 
-	obstacles1 = closestObstacle(findPoint(global_curPos,1),1,findRelevantObstacles(A,1))
-	obstacles2 = closestObstacle(findPoint(global_curPos,2),2,findRelevantObstacles(A,2))
+	obstacles1 = closestObstacle(findPoint(global_curPos,1),1,findRelevantObstacles(A,1)) #Nahstes Obstacle auf Bahn 1
+	obstacles2 = closestObstacle(findPoint(global_curPos,2),2,findRelevantObstacles(A,2)) #Nahstes Obstacle auf Bahn 2
 	if (setup.laneID == 0 and obstacles1 < 50) or (setup.laneID == 1 and obstacles2 < 50):
 		rospy.on_shutdown(when_shutdown)
 		#pub_speed.publish(0) #Wenn das Hinderniss zu nah ist, halte an.
