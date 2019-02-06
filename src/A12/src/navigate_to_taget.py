@@ -28,7 +28,7 @@ from setup_values import Setup
 from model_track import Track
 
 setup = Setup()
-carID = setup.carID  # 5
+carID = setup.carID  # 2
 target_speed = setup.target_speed  # 300
 curve_angle = setup.curve_angle  # 30
 slow_curve = setup.slowdown_curve  # 0.66
@@ -105,12 +105,13 @@ def callback_update_destiny(data):
 
 rospy.init_node("navigate_to_target", anonymous=True)
 
-# create subscribers and publishers
-sub_pos = rospy.Subscriber("/localization/odom/" + str(carID), Odometry, callback_position, queue_size=1)
-sub_des = rospy.Subscriber("/target_point", Point, callback_update_destiny, queue_size=1)
-
 pub_steering = rospy.Publisher("steering", UInt8, queue_size=1)
 pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=1)
+
+# create subscribers and publishers
+sub_pos = rospy.Subscriber("/localization/odom/12", Odometry, callback_position, queue_size=1)
+sub_des = rospy.Subscriber("/target_point", Point, callback_update_destiny, queue_size=1)
+
 # pub_speed = rospy.Publisher("/speed", UInt8, queue_size=1)
 
 

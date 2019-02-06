@@ -240,17 +240,10 @@ def obstacle_on_lane():
 			ob_int = 101
 		else: #Wenn es keinerlei relevante Hindernisse gibt
 			ob_int = 100
-		#print ("orientation:",global_orientation)
-		#print ("scanner_list:",scanner_list)
-		#print ("global_curPos:",global_curPos)
-		#print ("Destination:", findPoint((400,357),0))
-		#print ("Distance:",findDistance(global_curPos,findPoint((400,357),0),0,0))
-		#print ("obstacleList:",obstacleList,"len:",len(obstacleList))
-		#print ("relObs0:", findRelevantObstacles(obstacleList,0))
-		#print ("relObs1:", findRelevantObstacles(obstacleList,1))
 		rospy.loginfo(ob_int)
 		pub.publish(ob_int)
 		rate.sleep()
+	print(" \n #### SHUTTING DOWN OBSTACLE NODE ####")
 
 sub_scan = rospy.Subscriber("/scan", LaserScan, scan_callback)
 sub_odom = rospy.Subscriber("/localization/odom/12",Odometry, odom_callback)

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<launch>
+
+	<node name="localize" pkg="A12"	type="localize.py" output="screen"> </node>
+
+	<node name="navigate_to_target" pkg="A12" type="navigate_to_taget.py" output="screen"> </node>    
+
+
+</launch>
+
