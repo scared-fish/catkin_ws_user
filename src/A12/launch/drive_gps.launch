@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <launch>
-        <node name="obstacle.py" pkg="excercise11"
+        <node name="obstacles" pkg="A12"
                 type="obstacle.py" output="screen">
         </node>
 	

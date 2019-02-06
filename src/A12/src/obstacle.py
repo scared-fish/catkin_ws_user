@@ -12,34 +12,15 @@ from PIL import Image
 from PIL import ImageDraw
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
-from setup_values import Setup
-from model_track import Track
 
-# Referaenz zu rosinchen_10
-laneID = setup.laneID  # 0
-model = Track(laneID, logging)
-
-# fuer 'realtime' data
+# fuer realtime data
 global_curPos = (0,0)
 global_orientation = 0.0
 scanner_list = []
-odom_timestamp = time.time()
-
-# fuer den plotter
-obstacle_list = []
-position_list = []
-draw_timestamp = time.time()
-
-
-pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=100, latch=True)
 
 #bekomme die odometry daten
 def odom_callback(data):
-
-	global odom_timestamp
-	global position_list
-
-	# x,y
+  # x,y
 	global global_curPos
 	# der Winkel in Rad
 	global global_orientation
@@ -54,23 +35,10 @@ def odom_callback(data):
 
 	global_orientation = np.arccos(cur_w)*2 * (np.sign(cur_z) * (-1))
 
-	#fuer den plotter
-	if time.time() - odom_timestamp >= 1:
-		#die PIL liest es anders as die Welt
-		position_list.append([cur_y, cur_x])
-		odom_timestamp= time.time()
-		#return orientation of car in rad where 0,0 of the map is the Ursprung
-
 # bekommt die scan daten
 def scan_callback(data):
-	# fuer den plotter
-	global global_curPos
-	global global_orientation
-	plotter_list = []
-
 	distances = data.ranges
 	global scanner_list
-	global obstacle_list
 	scanner_list = []
 	# in relev_d ist kein fluessiger Uebergang dies wird
 	# in den weiteren Rechnungen aber berücksichtigt
@@ -81,29 +49,7 @@ def scan_callback(data):
 		if x >=1.3:
 			scanner_list.append(0)
 		else:
-			scanner_list.append(x)
-			# fuer den plotter
-			if x <= 0.4:
-				plotter_list.append(x)
-	transLidarInf(plotter_list, global_curPos, global_orientation)
-
-# der plotter aus aufgabe09
-def plotter():
-	print("PLOTTER PLOTTET")
-	global position_list
-	global obstacle_list
-	# soll nach 70 sekunden Fahrzeit einen Plot machen
-	time.sleep(70)
-	r=3
-	image_in = "map.bmp"
-	img = Image.open(image_in).convert('RGB')
-	draw = ImageDraw.Draw(img)
-	for pos in position_list:
-		draw.ellipse((pos[0] - r, pos[1] - r, pos[0] +r, pos[1] +r), fill=(255,0,0))
-	for obs in obstacle_list:
-		draw.ellipse((pos[0] - r, pos[1] - r, pos[0] +r, pos[1] +r), fill=(0,255,0))
-	image_out = "/home/plot.png"
-	img.save(image_out)
+			scanner_list.append(x-0.2)
 
 def findpoint(point,laneID): #Finde den nahsten Punkt auf einer bestimmen Spur
 
@@ -111,7 +57,7 @@ def findpoint(point,laneID): #Finde den nahsten Punkt auf einer bestimmen Spur
 	y= point[1]
 	# Distanz vom inneren Oval festlegen
 	lanedist = 0
-	if setup.laneID == 0:
+	if laneID == 0:
 		lanedist = 15
 	else:
 		lanedist = 45
@@ -139,13 +85,9 @@ def findpoint(point,laneID): #Finde den nahsten Punkt auf einer bestimmen Spur
 			ret = (405+round(math.sqrt(((120+lanedist)**2)-((((120+lanedist)**2)*(y-215)**2)/((x-405)**2+(y-215)**2)))),215+round(math.sqrt(((((120+lanedist)**2)*(y-215)**2)/((x-405)**2+(y-215)**2))))) #komplizierte, per Hand herbeigefuehrte Formel...
 
 	ret = (int(ret[0]),int(ret[1]))
-
 	return ret
 
-
 def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten uebersetzen
-
-# In Abhaengigkeit von getLidarInf
 # A enthaelt die Distanz von Objekten, vom Lidar gemessen
 	incr = math.pi * 2 / 360
 	x = currPos[0]
@@ -167,7 +109,7 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 		yadd = round(math.sqrt((A[i] * 100) ** 2 - xadd ** 2), 2)
 		if A[i] == 0: # Nullen in A bedeuten, dass kein Objekt gefunden wurde, werden also aussortiert
 			continue
-		if 0 <= C[i] < math.pi / 2:#Je nachdem, in welche Richtung der Winkel zeigh, muss der Offset addiert oder subtrahiert werden
+		if 0 <= C[i] < math.pi / 2:#Je nachdem, in welche Richtung der Winkel zeigt, muss der Offset addiert oder subtrahiert werden
 			D.append((x + xadd, y - yadd))
 		elif 0 <= C[i]:
 			D.append((x - xadd, y - yadd))
@@ -187,13 +129,17 @@ def findRelevantObstacles(A,laneID): #Pruefen, ob es auf einer Bahn Hindernisse 
 			ret.append(ref)
 	return (ret)
 
-def closestObstacle(currPos,laneID,A): #Das nahste Hinderniss auf einer Bahn finden
-	mindist = 500 #Große Zahl, die nicht vom Lidar geliefert werden kann (wird vorher rausgefiltert)
+
+def closestObstacles(currPos,laneID,A): #Das nahste Hinderniss auf einer Bahn finden
+  distances = []
 	for i in A:
 		dist = findDistance(currPos,i,laneID,0)#Berechne die Distanz vom Auto zu den relevanten Obstacles
-		if dist < mindist:
-			mindist = dist#Speichere die minimale Distanz
-	return (mindist)
+		distances.append(dist)
+  if len(distances)>2: #Um false-positives entgegenzuwirken
+    return (distances)
+  else:
+    return ([100]) #Also keine relevanten Obstacles
+
 
 def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf der
 	#Bahn finden, wobei point1 vor point2 liegen muss.
@@ -202,13 +148,13 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 	x2=point2[0]
 	y2=point2[1]
 
-	if laneID == 1: #Radius der Kreise, basieren auf der Bahn festlegen
+	if laneID == 0: #Radius der Kreise, basieren auf der Bahn festlegen
 		rad = 135
 	else:
 		rad = 165
 
 	totUmf = rad*math.pi #Umfang eines Halbkreises
-	
+
 	if y1 <= 215: #Den Winkel von Punkt 1 auf dem Halbkreis berechnen (nutzlos, falls Punkt 1 auf keinem Halbkreis liegt.)
 		beta = 90+math.degrees(math.asin((215-y1)/rad))
 	else:
@@ -261,34 +207,43 @@ def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf 
 	else:
 		return (int(distance)) #Wenn newPoint1 == Point 2, wurde die richtige Distanz gefunden
 
-def obstacle_based_lane_switch():
+
+def obstacle_on_lane():
 	global scanner_list
 	global global_curPos
 	global global_orientation
-	setup.laneID
-	A=transLidarInf(scanner_list, global_curPos, global_orientation) #Fetched die Lidar-Informationen
+	pub = rospy.Publisher('/obstacle_on_lane', Int8, queue_size=10)
+	rospy.init_node('obstacles', anonymous=True)
+	rate = rospy.Rate(10)
+  while not rospy.is_shutdown():
+    ob_int = 100 # Hier fuehren wir eine neue Logik ein:
+		# 100 : lane 0 und 1 sind frei
+    # 101 : lane 0 ist frei lane 1 nicht
+    # 110 : lane 0 ist nicht frei lane 1 ist frei
+    # 111 : keine lane frei
+    # Wobei lane 0 die innere und 1 die aeussere ist
+    obstacleList=transLidarInf(scanner_list, global_curPos, global_orientation) #Fetched die Lidar-Informationen
 
-	obstacles1 = closestObstacle(findPoint(global_curPos,1),1,findRelevantObstacles(A,1)) #Nahstes Obstacle auf Bahn 1
-	obstacles2 = closestObstacle(findPoint(global_curPos,2),2,findRelevantObstacles(A,2)) #Nahstes Obstacle auf Bahn 2
-	if (setup.laneID == 0 and obstacles1 < 50) or (setup.laneID == 1 and obstacles2 < 50):
-		rospy.on_shutdown(when_shutdown)
-		#pub_speed.publish(0) #Wenn das Hinderniss zu nah ist, halte an.
-	elif (setup.laneID == 0 and obstacles1 < 500) and not (obstacles2 < 500):
-		setup.laneID = 1 #Wenn auf Bahn 1 gefahren wird, und sich ein dort ein Hinderniss befindet, weiche auf Bahn 2 aus.
-	elif (setup.laneID == 1 and obstacles2 < 500) and not (obstacles1 < 500):
-		setup.laneID = 0 #s.o.; Bahn 2 -> Bahn 1
-
-rospy.init_node('obstacle', anonymous=True)
+    obstacles0 = closestObstacles(findPoint(global_curPos,0),0,findRelevantObstacles(obstacleList,0)) #Nahstes Obstacle auf Bahn 0
+    obstacles1 = closestObstacles(findPoint(global_curPos,1),1,findRelevantObstacles(obstacleList,1)) #Nahstes Obstacle auf Bahn 1
+    if (min(obstacles0) < 100) and (min(obstacles1) < 100): #Wenn auf beiden Bahnen relevante Hindernisse sind
+      ob_int = 111
+    elif (min(obstacles0) < 100): #Wenn nur auf Bahn 0 Hindernisse sind
+      ob_int = 110
+    elif (min(obstacles1) < 100): #Wenn nur auf Bahn 1 Hindernisse sind
+      ob_int = 101
+    else: #Wenn es keinerlei relevante Hindernisse gibt
+      ob_int = 100
+    rospy.loginfo(ob_int)
+    pub.publish(ob_int)
+    rate.sleep()
 
 sub_scan = rospy.Subscriber("/scan", LaserScan, scan_callback)
 sub_odom = rospy.Subscriber("/localization/odom/5",Odometry, odom_callback)
-plotter()
 
-try:
-	rospy.spin()
-
-except KeyboardInterrupt:
-	print("Shutting down")
-
-
+if __name__ == '__main__':
+  try:
+		obstacle_on_lane()
+	except rospy.ROSInterruprExeption as err:
+    print(err)
 
