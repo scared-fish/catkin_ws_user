@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <launch>
-        <node name="obstacles" pkg="A12"
-                type="obstacle.py" output="screen">
-        </node>
+        <node name="obstacles" pkg="A12" type="obstacle.py" output="screen"> </node>
 	
-	<node name="master_discovery" pkg="master_discovery_fkie" type="master_discovery" output="screen"/>
-	<node name="master_sync" pkg="master_sync_fkie" type="master_sync" output="screen">
-		<rosparam param="sync_hosts">['192.168.43.2']</rosparam>
-	</node>
-	<node pkg="tf" type="tf_remap" name="tf_remapper" output="screen">
-		<rosparam param="mappings">[{old: /car_0/base_link, new: /base_link}]</rosparam>
-	</node>
+	<node name="localize" pkg="A12"	type="localize.py" output="screen"> </node>
+
+	<node name="navigate_to_target" pkg="A12" type="navigate_to_taget.py" output="screen"> </node>  
 
 </launch>
 
