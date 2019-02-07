@@ -26,9 +26,9 @@ from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import Image
 from model_track import Track
 
-target_speed =  300
-curve_angle = 30
-slow_curve = 0.66
+target_speed =  450
+curve_angle = 25
+slow_curve = 0.75
 is_shutdown = False
 gps_offset = [-0.03, -0.015]
 
@@ -52,12 +52,8 @@ def get_mean_past(b):
 
 def callback_position(data):
 	global desired_position
-	global gps_offset
-	global curve_angle
-	global slow_curve
-	global target_speed
-	x, y, w, z = data.pose.pose.position.x + gps_offset[0], data.pose.pose.position.y + gps_offset[
-		1], data.pose.pose.orientation.w, data.pose.pose.orientation.z
+
+	x, y, w, z = data.pose.pose.position.x + gps_offset[0], data.pose.pose.position.y + gps_offset[1], data.pose.pose.orientation.w, data.pose.pose.orientation.z
 	# position & angle
 	current_position = np.array([x, y])
 	orientation_angle = 2 * np.arccos(w) * np.sign(z)
