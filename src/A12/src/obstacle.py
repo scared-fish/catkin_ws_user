@@ -47,7 +47,7 @@ def scan_callback(data):
 	# alles ueber 1,5m -> 0
 	relev_d = distances[0:45] + distances[314:359]
 	for x in relev_d:
-		if x >=1.3:
+		if x >=1.6:
 			scanner_list.append(0)
 		else:
 			scanner_list.append(x+0.1)
@@ -105,11 +105,15 @@ def transLidarInf(A, currPos, orient):  # Lidar-Information in Koordinaten ueber
 	D = []
 	for i in range(0, len(C)):
 		#x/y-Offset kann durch den Winkel Beta (C[i]) und die Laenge der Hypotenuse (A[i]) berechnet werden
-		xadd = A[i] * 100 * math.cos(C[i])
+		#print ("corr:",i,corr)
+		xadd = (A[i] * 100 * math.cos(C[i]))
 		if abs(C[i]) >= math.pi / 2:
 			xadd = -xadd
-		yadd = round(math.sqrt(((A[i] * 100) ** 2) - (xadd ** 2)), 2)
-		xadd = round(xadd,2)
+		yadd = (math.sqrt(((A[i] * 100) ** 2) - (xadd ** 2)))
+		#attempt to correct some weird stretching
+		corr = 1+((45-abs(45-i))/45.0/3.0)
+		xadd = round(xadd*corr,2)
+		yadd = round(yadd*corr,2)
 		if A[i] == 0: # Nullen in A bedeuten, dass kein Objekt gefunden wurde, werden also aussortiert
 			continue
 		if 0 <= C[i] < math.pi / 2:#Je nachdem, in welche Richtung der Winkel zeigt, muss der Offset addiert oder subtrahiert werden
@@ -141,7 +145,7 @@ def closestObstacles(currPos,laneID,A): #Das nahste Hinderniss auf einer Bahn fi
 	if len(distances)>2: #Um false-positives entgegenzuwirken
 		return (distances)
 	else:
-		return ([100]) #Also keine relevanten Obstacles
+		return ([120]) #Also keine relevanten Obstacles
 
 
 def findDistance(point1,point2,laneID,distance):#Distanz zwischen 2 Punkten auf der
@@ -230,13 +234,13 @@ def obstacle_on_lane():
 		ob_int = 100
 		obstacleList=transLidarInf(scanner_list, global_curPos, global_orientation) #Fetched die Lidar-Informationen
 
-		obstacles0 = closestObstacles(findPoint(global_curPos,0),0,findRelevantObstacles(obstacleList,0)) #Nahstes Obstacle auf Bahn 0
-		obstacles1 = closestObstacles(findPoint(global_curPos,1),1,findRelevantObstacles(obstacleList,1)) #Nahstes Obstacle auf Bahn 1
-		if (min(obstacles0) < 100) and (min(obstacles1) < 100): #Wenn auf beiden Bahnen relevante Hindernisse sind
+		obstacles0 = closestObstacles(findPoint(global_curPos,0),0,findRelevantObstacles(obstacleList,0)) #Nahstes Obstacles auf Bahn 0
+		obstacles1 = closestObstacles(findPoint(global_curPos,1),1,findRelevantObstacles(obstacleList,1)) #Nahstes Obstacles auf Bahn 1
+		if (min(obstacles0) < 120) and (min(obstacles1) < 120): #Wenn auf beiden Bahnen relevante Hindernisse sind
 			ob_int = 111
-		elif (min(obstacles0) < 100): #Wenn nur auf Bahn 0 Hindernisse sind
+		elif (min(obstacles0) < 120): #Wenn nur auf Bahn 0 Hindernisse sind
 			ob_int = 110
-		elif (min(obstacles1) < 100): #Wenn nur auf Bahn 1 Hindernisse sind
+		elif (min(obstacles1) < 120): #Wenn nur auf Bahn 1 Hindernisse sind
 			ob_int = 101
 		else: #Wenn es keinerlei relevante Hindernisse gibt
 			ob_int = 100
