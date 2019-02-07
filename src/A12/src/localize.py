@@ -32,7 +32,7 @@ def callback_lane_swap(data):
 	elif obstacle_int == 101:
 		model.set_lane(0)
 	elif obstacle_int == 111:
-		pub_speed.publish(0.0)
+		print(" ### LANE BLOCKED ### ")
 
 
 def callback_target(data):

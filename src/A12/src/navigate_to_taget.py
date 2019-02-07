@@ -12,6 +12,7 @@ import roslib
 import rospy
 import sys
 import cv2
+import time
 import numpy as np
 from collections import deque
 from std_msgs.msg import UInt8
@@ -41,6 +42,8 @@ past_queue_size_velo = 5
 past_angle = deque(maxlen=past_queue_size_angle)
 past_angle_velo = deque(maxlen=past_queue_size_velo)
 
+lane_block_queue = []
+block_timestamp = time.time()
 
 def get_past_array(a):
 	return np.array(list(a))
@@ -49,6 +52,22 @@ def get_past_array(a):
 def get_mean_past(b):
 	arr = get_past_array(b)
 	return np.mean(arr)
+
+
+def callback_lanes_blocked(data):
+	global lane_block_queue
+	global block_timestamp
+
+	if data.data == 111:
+		lane_block_queue.append(111)
+	# mindestens X mal in 1.5 Sekunden lane blocked signal erhalten
+	if len(lane_block_queue) > 3:
+		rospy.signal_shutdown(" #### LANE BLOCKED #### ")
+	# setze timestamp und lane_block_queue Liste zurueck
+	if time.time() - block_timestamp > 1.5:
+		block_timestamp = time.time()
+		lane_block_queue = []
+
 
 def callback_position(data):
 	global desired_position
@@ -109,9 +128,10 @@ pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=1)
 # create subscribers and publishers
 sub_pos = rospy.Subscriber("/localization/odom/12", Odometry, callback_position, queue_size=1)
 sub_des = rospy.Subscriber("/target_point", Point, callback_update_destiny, queue_size=1)
+sub_obstacle_on_lane = rospy.Subscriber("/obstacle_on_lane", Int8, callback_lanes_blocked, queue_size=10)
+
 
 # pub_speed = rospy.Publisher("/speed", UInt8, queue_size=1)
 
 
 rospy.spin()
-
