@@ -22,7 +22,7 @@ from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import Image
 from model_track import Track
 
-target_speed =  550 # Ausgangswert 450 (video)
+target_speed =  450 # 450 für Hindernisse und 800 ohne Hindernisse
 curve_angle = 25
 slow_curve = 0.75
 is_shutdown = False
@@ -57,6 +57,7 @@ def callback_lanes_blocked(data):
 		lane_block_queue.append(111)
 	# mindestens X mal in 1.5 Sekunden lane blocked signal erhalten
 	if len(lane_block_queue) > 3:
+		pub_speed.publish(-300.0)
 		rospy.signal_shutdown(" #### LANE BLOCKED #### ")
 	# setze timestamp und lane_block_queue Liste zurueck
 	if time.time() - block_timestamp > 1.5:
@@ -67,11 +68,14 @@ def callback_lanes_blocked(data):
 def callback_position(data):
 	global desired_position
 
+	# Odom Daten
 	x, y, w, z = data.pose.pose.position.x + gps_offset[0], data.pose.pose.position.y + gps_offset[1], data.pose.pose.orientation.w, data.pose.pose.orientation.z
-	# position & angle
+
+	# globale Position und Winkel
 	current_position = np.array([x, y])
 	orientation_angle = 2 * np.arccos(w) * np.sign(z)
 
+	# bestimme
 	orientation_vector = np.array([np.cos(orientation_angle), np.sin(orientation_angle)])
 	origin_vector = current_position + np.array([0.3 * np.cos(orientation_angle), 0.3 * np.sin(orientation_angle)])
 
@@ -91,7 +95,8 @@ def callback_position(data):
 	past_angle.appendleft(steering_angle_final)
 	past_angle_velo.appendleft(steering_angle_final)
 
-	pub_steering.publish(get_mean_past(past_angle))
+	pub_angle = get_mean_past(past_angle) + (90-get_mean_past(past_angle))*0.3
+	pub_steering.publish(pub_angle)
 
 	if not is_shutdown:
 		if get_mean_past(past_angle_velo) > 90 + curve_angle or get_mean_past(past_angle_velo) < 90 - curve_angle:
@@ -124,9 +129,6 @@ pub_speed = rospy.Publisher("/manual_control/speed", Int16, queue_size=1)
 sub_pos = rospy.Subscriber("/localization/odom/12", Odometry, callback_position, queue_size=1)
 sub_des = rospy.Subscriber("/target_point", Point, callback_update_destiny, queue_size=1)
 sub_obstacle_on_lane = rospy.Subscriber("/obstacle_on_lane", Int8, callback_lanes_blocked, queue_size=10)
-
-
-# pub_speed = rospy.Publisher("/speed", UInt8, queue_size=1)
 
 
 rospy.spin()
